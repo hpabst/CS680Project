@@ -2,7 +2,7 @@ import keras.backend as K
 import numpy as np
 
 
-def precision(y_true, y_pred, threshold=0.5):
+def precision_tensor(y_true, y_pred, threshold=0.5):
     """
     Reimplemented removed Keras metric.
     Sourced from https://github.com/keras-team/keras/commit/a56b1a55182acf061b1eb2e2c86b48193a0e88f7
@@ -12,13 +12,20 @@ def precision(y_true, y_pred, threshold=0.5):
      Computes the precision, a metric for multi-label classification of
     how many selected items are relevant.
     """
+    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
+    prec = true_positives / (predicted_positives + K.epsilon())
+    return prec
+
+
+def precision(y_true, y_pred):
     true_positives = np.sum(np.around(np.clip(y_true * y_pred, 0, 1)))
     predicted_positives = np.sum(np.around(np.clip(y_pred, 0, 1)))
     prec = true_positives / predicted_positives
     return prec
 
 
-def recall(y_true, y_pred):
+def recall_tensor(y_true, y_pred):
     """
     Reimplemented removed Keras metric
     Sourced from https://github.com/keras-team/keras/commit/a56b1a55182acf061b1eb2e2c86b48193a0e88f7
@@ -28,13 +35,20 @@ def recall(y_true, y_pred):
      Computes the recall, a metric for multi-label classification of
     how many relevant items are selected.
     """
+    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
+    rec = true_positives / (possible_positives + K.epsilon())
+    return rec
+
+
+def recall(y_true, y_pred):
     true_positives = np.sum(np.around(np.clip(y_true * y_pred, 0, 1)))
-    possible_positives = np.sum(np.around(np.clip(y_true, 0, 1)))
+    possible_positives = np.sum(np.round(np.clip(y_true, 0, 1)))
     rec = true_positives / possible_positives
     return rec
 
 
-def fbeta_score(y_true, y_pred, beta=1):
+def fbeta_score_tensor(y_true, y_pred, beta=1):
     """
     Reimplemented removed Keras metric.
     Sourced from https://github.com/keras-team/keras/commit/a56b1a55182acf061b1eb2e2c86b48193a0e88f7
@@ -53,6 +67,19 @@ def fbeta_score(y_true, y_pred, beta=1):
     correct classes becomes more important, and with beta > 1 the metric is
     instead weighted towards penalizing incorrect class assignments.
     """
+    if beta < 0:
+        raise ValueError('The lowest choosable beta is zero (only precision).')
+    #  If there are no true positives, fix the F score at 0 like sklearn.
+    if K.sum(K.round(K.clip(y_true, 0, 1))) == 0:
+        return 0
+    p = precision_tensor(y_true, y_pred)
+    r = recall_tensor(y_true, y_pred)
+    bb = beta ** 2
+    score = (1 + bb) * (p * r) / (bb * p + r + K.epsilon())
+    return score
+
+
+def fbeta_score(y_true, y_pred, beta=1):
     if beta < 0:
         raise ValueError('The lowest choosable beta is zero (only precision).')
     #  If there are no true positives, fix the F score at 0 like sklearn.

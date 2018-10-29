@@ -35,11 +35,34 @@ def shuffle_arrays(arr1, arr2, seed=None):
     return arr1_ret, arr2_ret
 
 
+def is_digit(string):
+    #  Sourced from https://stackoverflow.com/questions/354038/how-do-i-check-if-a-string-is-a-number-float
+    try:
+        float(string)
+        return True
+    except ValueError:
+        return False
+
+
+def collapse_embedding_array(array):
+    word = array[0]
+    remaining_arr = []
+    for i in range(1, len(array)):
+        if not is_digit(array[i]):
+            word += (" " + array[i])
+        else:
+            remaining_arr = array[i:]
+            break
+    return [word] + remaining_arr
+
+
+
+
 def create_embedding_matrix(filepath, dictionary, embedding_dim):
     embeddings_index = {}
     with open(filepath, encoding="utf8") as f:
         for line in f:
-            values = line.split()
+            values = collapse_embedding_array(line.split())
             word = values[0]
             coefs = np.asarray(values[1:], dtype="float32")
             embeddings_index[word] = coefs
@@ -51,7 +74,7 @@ def create_embedding_matrix(filepath, dictionary, embedding_dim):
     return embedding_matrix
 
 
-def read_data_embeddings():
+def read_data_embeddings(max_input_length=10):
     kdd_data = pd.read_csv("../data/KDD_Cup_2005_Data.csv")
     kdd_x = kdd_data[["Query"]]
     kdd_y = kdd_data[["Label"]]
@@ -63,6 +86,6 @@ def read_data_embeddings():
     tokenizer = Tokenizer(num_words=200000, split=' ')
     tokenizer.fit_on_texts(X["Query"].values)
     X_train = tokenizer.texts_to_sequences(X["Query"].values)
-    X_train = pad_sequences(X_train)
+    X_train = pad_sequences(X_train, maxlen=max_input_length)
     y_train = y["Label"].values
-    return X_train, y_train
+    return X_train, y_train, tokenizer
