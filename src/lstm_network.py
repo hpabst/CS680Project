@@ -12,22 +12,16 @@ EMBEDDING_DIM = 300
 MAX_QUERY_LENGTH = 10
 EMBEDDING_DIR = "../embeddings/glove.6B.300d.txt"
 
-SEED = 20
+SEED = None
 EPOCHS = 50
 BATCH_SIZE = 64
 WEIGHT_CLASSES = True
-SAMPLE_TYPE = "base_smote"
+SAMPLE_TYPE = "naieve_undersample"
+PRETRAIN_EMBEDDINGS = True
 
 def main():
     print("Reading data...")
-    x, y, tokenizer = read_data_embeddings(max_input_length=MAX_QUERY_LENGTH)
-    x, y = shuffle_arrays(x, y, seed=SEED)
-    num_val_examples = int(VAL_SPLIT * x.shape[0])
-    x_train = x[:-num_val_examples]
-    y_train = y[:-num_val_examples]
-
-    x_val = x[-num_val_examples:]
-    y_val = y[-num_val_examples:]
+    x_train, y_train, x_val, y_val, tokenizer = read_data_embeddings(max_input_length=MAX_QUERY_LENGTH)
 
     train_positive = np.sum(y_train)
     num_train = y_train.shape[0]
@@ -52,11 +46,17 @@ def main():
                                                EMBEDDING_DIM)
     print("Generating model...")
     model = Sequential()
-    model.add(Embedding(len(tokenizer.word_index) + 1,
-                        EMBEDDING_DIM,
-                        embeddings_initializer=Constant(embedding_matrix),
-                        input_length=MAX_QUERY_LENGTH,
-                        trainable=True))
+    if PRETRAIN_EMBEDDINGS:
+        model.add(Embedding(len(tokenizer.word_index) + 1,
+                            EMBEDDING_DIM,
+                            embeddings_initializer=Constant(embedding_matrix),
+                            input_length=MAX_QUERY_LENGTH,
+                            trainable=True))
+    else:
+        model.add(Embedding(len(tokenizer.word_index) + 1,
+                            EMBEDDING_DIM,
+                            input_length=MAX_QUERY_LENGTH,
+                            trainable=True))
     model.add(LSTM(128, dropout=0.2))
     model.add(Dense(1, activation='sigmoid'))
     print("Compiling model...")

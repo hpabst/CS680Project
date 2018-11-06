@@ -7,7 +7,7 @@ from collections import Counter
 
 def naieve_oversample(x, y, seed=None):
     if seed is None:
-        seed = random.randint()
+        seed = random.randint(0, 1000)
     ros = RandomOverSampler(random_state=seed)
     x_resampled, y_resampled = ros.fit_resample(x, y)
     return x_resampled, y_resampled
@@ -15,14 +15,14 @@ def naieve_oversample(x, y, seed=None):
 
 def naieve_undersample(x, y, seed=None):
     if seed is None:
-        seed = random.randint()
+        seed = random.randint(0, 1000)
     rus = RandomUnderSampler(random_state=seed)
     x_resampled, y_resampled = rus.fit_resample(x, y)
     return x_resampled, y_resampled
 
 def base_smote_oversample(x, y, seed=None):
     if seed is None:
-        seed = random.randint()
+        seed = random.randint(0, 1000)
     bsmote = SMOTE(random_state=seed)
     x_resampled, y_resampled = bsmote.fit_resample(x, y)
     return x_resampled, y_resampled
@@ -30,7 +30,7 @@ def base_smote_oversample(x, y, seed=None):
 
 def balance_samples(x, y, seed=None, type="naieve_oversample"):
     if seed is None:
-        seed = random.randint()
+        seed = random.randint(0, 1000)
     if type is None:
         return x, y
     sample_types = {"naieve_oversample": RandomOverSampler,

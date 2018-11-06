@@ -7,6 +7,7 @@ from keras.utils.vis_utils import plot_model
 import random
 import pickle
 import json
+import pathlib
 
 
 def evaluate_model(model, X_train, y_train, X_val, y_val):
@@ -32,8 +33,9 @@ def save_model(model, history, filename,
                prec=None, recall=None, f1=None,
                epochs=None, batch_size=None, random_seed=None,
                class_weights=None, sample_type=None):
-    model.save("../models/{}.h5".format(filename))
-    with open("../models/{}.txt".format(filename), 'wb') as f:
+    pathlib.Path("../models/{}".format(filename)).mkdir(parents=True, exist_ok=True)
+    model.save("../models/{}/{}.h5".format(filename, filename))
+    with open("../models/{}/{}.txt".format(filename, filename), 'wb') as f:
         pickle.dump(history.history, f)
     with open("../results/{}.txt".format(filename), 'w+') as f:
         if prec is not None:
@@ -52,13 +54,13 @@ def save_model(model, history, filename,
             f.write("\n")
         if sample_type is not None:
             f.write("Sample type: {}\n".format(sample_type))
-    plot_model(model, to_file="../models/{}.png".format(filename), show_shapes=True)
+    plot_model(model, to_file="../models/{}/{}.png".format(filename, filename), show_shapes=True)
     return
 
 
 def shuffle_arrays(arr1, arr2, seed=None):
     if seed is None:
-        seed = random.randint()
+        seed = random.randint(0, 1000)
     indices = np.arange(arr1.shape[0])
     np.random.seed(seed)
     np.random.shuffle(indices)
@@ -105,6 +107,31 @@ def create_embedding_matrix(filepath, dictionary, embedding_dim):
 
 
 def read_data_embeddings(max_input_length=10):
+    # kdd_data = pd.read_csv("../data/KDD_Cup_2005_Data.csv")
+    # kdd_x = kdd_data[["Query"]]
+    # kdd_y = kdd_data[["Label"]]
+    # google_trends_data = pd.read_csv("../data/Google_Trends_Search_Queries.csv")
+    # trends_x = google_trends_data[["Query"]]
+    # trends_y = google_trends_data[["Label"]]
+    # kdd_data_8k = pd.read_csv("../data/KDD_Cup_2005_Data_8k.csv")
+    # kdd_8k_x = kdd_data_8k[["Query"]]
+    # kdd_8k_y = kdd_data_8k[["Label"]]
+    # X = pd.concat((kdd_x, kdd_8k_x, trends_x))
+    # y = pd.concat((kdd_y, kdd_8k_y, trends_y))
+    X_train, y_train, X_val, y_val = read_train_val_data()
+    X = pd.concat((X_train, X_val))
+    tokenizer = Tokenizer(num_words=200000, split=' ')
+    tokenizer.fit_on_texts(X[0].values)
+    X_train = tokenizer.texts_to_sequences(X_train[0].values)
+    X_train = pad_sequences(X_train, maxlen=max_input_length)
+    X_val = tokenizer.texts_to_sequences(X_val[0].values)
+    X_val = pad_sequences(X_val, maxlen=max_input_length)
+    y_train = y_train[0].values
+    y_val = y_val[0].values
+    return X_train, y_train, X_val, y_val, tokenizer
+
+
+def validation_training_split(split=0.2):
     kdd_data = pd.read_csv("../data/KDD_Cup_2005_Data.csv")
     kdd_x = kdd_data[["Query"]]
     kdd_y = kdd_data[["Label"]]
@@ -116,9 +143,22 @@ def read_data_embeddings(max_input_length=10):
     kdd_8k_y = kdd_data_8k[["Label"]]
     X = pd.concat((kdd_x, kdd_8k_x, trends_x))
     y = pd.concat((kdd_y, kdd_8k_y, trends_y))
-    tokenizer = Tokenizer(num_words=200000, split=' ')
-    tokenizer.fit_on_texts(X["Query"].values)
-    X_train = tokenizer.texts_to_sequences(X["Query"].values)
-    X_train = pad_sequences(X_train, maxlen=max_input_length)
-    y_train = y["Label"].values
-    return X_train, y_train, tokenizer
+    X, y = shuffle_arrays(X.values, y.values)
+    num_val_examples = int(split * X.shape[0])
+    x_train = X[:-num_val_examples]
+    y_train = y[:-num_val_examples]
+    x_val = X[-num_val_examples:]
+    y_val = y[-num_val_examples:]
+    pd.DataFrame(x_train).to_csv("../data/X_train.csv", header=None, index_label=False, index=False)
+    pd.DataFrame(y_train).to_csv("../data/y_train.csv", header=None, index_label=False, index=False)
+    pd.DataFrame(x_val).to_csv("../data/X_val.csv", header=None, index_label=False, index=False)
+    pd.DataFrame(y_val).to_csv("../data/y_val.csv", header=None, index_label=False, index=False)
+    return
+
+
+def read_train_val_data():
+    x_train = pd.read_csv("../data/X_train.csv", header=None)
+    y_train = pd.read_csv("../data/y_train.csv", header=None)
+    x_val = pd.read_csv("../data/X_val.csv", header=None)
+    y_val = pd.read_csv("../data/y_val.csv", header=None)
+    return x_train, y_train, x_val, y_val
