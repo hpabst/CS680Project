@@ -19,10 +19,12 @@ def precision_tensor(y_true, y_pred, threshold=0.5):
 
 
 def precision(y_true, y_pred):
-    true_positives = np.sum(np.around(np.clip(y_true * y_pred, 0, 1)))
-    predicted_positives = np.sum(np.around(np.clip(y_pred, 0, 1)))
-    prec = true_positives / predicted_positives
-    return prec
+    # true_positives = np.sum(np.around(np.clip(y_true * y_pred, 0, 1)))
+    # predicted_positives = np.sum(np.around(np.clip(y_pred, 0, 1)))
+    # prec = true_positives / predicted_positives
+    TP = np.count_nonzero(np.logical_and(y_pred.flatten() >= 0.5, y_true.flatten() == 1))
+    FP = np.count_nonzero(np.logical_and(y_pred.flatten() >= 0.5, y_true.flatten() == 0))
+    return TP/(TP+FP)
 
 
 def recall_tensor(y_true, y_pred):
@@ -42,10 +44,12 @@ def recall_tensor(y_true, y_pred):
 
 
 def recall(y_true, y_pred):
-    true_positives = np.sum(np.around(np.clip(y_true * y_pred, 0, 1)))
-    possible_positives = np.sum(np.round(np.clip(y_true, 0, 1)))
-    rec = true_positives / possible_positives
-    return rec
+    # true_positives = np.sum(np.around(np.clip(y_true * y_pred, 0, 1)))
+    # possible_positives = np.sum(np.round(np.clip(y_true, 0, 1)))
+    # rec = true_positives / possible_positives
+    TP = np.count_nonzero(np.logical_and(y_pred.flatten() >= 0.5, y_true.flatten() == 1))
+    FN = np.count_nonzero(np.logical_and(y_pred.flatten() < 0.5, y_true.flatten() == 1))
+    return TP/(TP + FN)
 
 
 def fbeta_score_tensor(y_true, y_pred, beta=1):

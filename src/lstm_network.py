@@ -1,5 +1,6 @@
 from utils import *
-from metrics import precision, recall, fbeta_score
+from data_rebalancing import balance_samples
+from metrics import *
 import numpy as np
 import pandas as pd
 from keras.layers import Dense, LSTM, Embedding, Input
@@ -11,42 +12,69 @@ EMBEDDING_DIM = 300
 MAX_QUERY_LENGTH = 10
 EMBEDDING_DIR = "../embeddings/glove.6B.300d.txt"
 
+SEED = 20
+EPOCHS = 50
+BATCH_SIZE = 64
+WEIGHT_CLASSES = True
+SAMPLE_TYPE = "base_smote"
+
 def main():
     print("Reading data...")
     x, y, tokenizer = read_data_embeddings(max_input_length=MAX_QUERY_LENGTH)
-    x, y = shuffle_arrays(x, y, seed=20)
+    x, y = shuffle_arrays(x, y, seed=SEED)
     num_val_examples = int(VAL_SPLIT * x.shape[0])
     x_train = x[:-num_val_examples]
     y_train = y[:-num_val_examples]
 
     x_val = x[-num_val_examples:]
     y_val = y[-num_val_examples:]
+
+    train_positive = np.sum(y_train)
+    num_train = y_train.shape[0]
+
+    if WEIGHT_CLASSES:
+        class_weights = {
+            0: 1.,
+            1: (num_train-train_positive)/train_positive,
+        }
+    else:
+        class_weights = {
+            0: 1.,
+            1: 1.,
+        }
+
+    print("Rebalancing training data...")
+    #x_train, y_train = naieve_oversample(x_train, y_train, seed=SEED)
+    x_train, y_train = balance_samples(x_train, y_train, seed=SEED, type=SAMPLE_TYPE)
     print("Creating word embeddings matrix...")
     embedding_matrix = create_embedding_matrix(EMBEDDING_DIR,
                                                tokenizer.word_index,
                                                EMBEDDING_DIM)
     print("Generating model...")
     model = Sequential()
-    #model.add(Input(shape=(MAX_QUERY_LENGTH,), dtype='int32'))
     model.add(Embedding(len(tokenizer.word_index) + 1,
                         EMBEDDING_DIM,
                         embeddings_initializer=Constant(embedding_matrix),
                         input_length=MAX_QUERY_LENGTH,
-                        trainable=False))
+                        trainable=True))
     model.add(LSTM(128, dropout=0.2))
     model.add(Dense(1, activation='sigmoid'))
     print("Compiling model...")
-    model.compile(loss='binary_crossentropy',
+    model.compile(loss='mean_squared_error',
                   optimizer='adam',
                   metrics=['accuracy'])
     print("Training model...")
-    history = model.fit(x_train, y_train, batch_size=128, epochs=100,
-                        validation_data=(x_val, y_val))
+    history = model.fit(x_train, y_train, batch_size=BATCH_SIZE, epochs=EPOCHS,
+                        validation_data=(x_val, y_val),
+                        verbose=2,
+                        class_weight=class_weights)
     print("Determining validation metrics...")
-    val_metrics = model.evaluate(x=x_val, y=y_val)
-    print(val_metrics)
-    evaluate_model(model, x_train, y_train, x_val, y_val)
-
+    val_prec, val_recall, val_f1 = evaluate_model(model, x_train, y_train, x_val, y_val)
+    model_name = input("Enter a filename for model >>")
+    save_model(model, history, model_name,
+               prec=val_prec, recall=val_recall, f1=val_f1,
+               epochs=EPOCHS, batch_size=BATCH_SIZE, random_seed=SEED,
+               class_weights=class_weights, sample_type=SAMPLE_TYPE)
     return
 
 
