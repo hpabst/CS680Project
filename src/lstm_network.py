@@ -15,9 +15,10 @@ EMBEDDING_DIR = "../embeddings/glove.6B.300d.txt"
 SEED = None
 EPOCHS = 50
 BATCH_SIZE = 64
-WEIGHT_CLASSES = True
-SAMPLE_TYPE = "naieve_undersample"
+WEIGHT_CLASSES = False
+SAMPLE_TYPE = None
 PRETRAIN_EMBEDDINGS = True
+
 
 def main():
     print("Reading data...")
@@ -38,7 +39,6 @@ def main():
         }
 
     print("Rebalancing training data...")
-    #x_train, y_train = naieve_oversample(x_train, y_train, seed=SEED)
     x_train, y_train = balance_samples(x_train, y_train, seed=SEED, type=SAMPLE_TYPE)
     print("Creating word embeddings matrix...")
     embedding_matrix = create_embedding_matrix(EMBEDDING_DIR,
@@ -75,7 +75,7 @@ def main():
                prec=val_prec, recall=val_recall, f1=val_f1,
                epochs=EPOCHS, batch_size=BATCH_SIZE, random_seed=SEED,
                class_weights=class_weights, sample_type=SAMPLE_TYPE)
-    return
+    return model
 
 
 if __name__ == "__main__":

@@ -4,10 +4,14 @@ import pandas as pd
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.sequence import pad_sequences
 from keras.utils.vis_utils import plot_model
+from keras.utils import to_categorical
+from sklearn.preprocessing import LabelEncoder
 import random
 import pickle
 import json
 import pathlib
+
+MAX_NUM_WORDS = 200000
 
 
 def evaluate_model(model, X_train, y_train, X_val, y_val):
@@ -106,26 +110,27 @@ def create_embedding_matrix(filepath, dictionary, embedding_dim):
     return embedding_matrix
 
 
-def read_data_embeddings(max_input_length=10):
-    # kdd_data = pd.read_csv("../data/KDD_Cup_2005_Data.csv")
-    # kdd_x = kdd_data[["Query"]]
-    # kdd_y = kdd_data[["Label"]]
-    # google_trends_data = pd.read_csv("../data/Google_Trends_Search_Queries.csv")
-    # trends_x = google_trends_data[["Query"]]
-    # trends_y = google_trends_data[["Label"]]
-    # kdd_data_8k = pd.read_csv("../data/KDD_Cup_2005_Data_8k.csv")
-    # kdd_8k_x = kdd_data_8k[["Query"]]
-    # kdd_8k_y = kdd_data_8k[["Label"]]
-    # X = pd.concat((kdd_x, kdd_8k_x, trends_x))
-    # y = pd.concat((kdd_y, kdd_8k_y, trends_y))
+def read_data_embeddings(max_input_length=10, vocab_size=MAX_NUM_WORDS):
     X_train, y_train, X_val, y_val = read_train_val_data()
     X = pd.concat((X_train, X_val))
-    tokenizer = Tokenizer(num_words=200000, split=' ')
+    tokenizer = Tokenizer(num_words=vocab_size, split=' ')
     tokenizer.fit_on_texts(X[0].values)
     X_train = tokenizer.texts_to_sequences(X_train[0].values)
     X_train = pad_sequences(X_train, maxlen=max_input_length)
     X_val = tokenizer.texts_to_sequences(X_val[0].values)
     X_val = pad_sequences(X_val, maxlen=max_input_length)
+    y_train = y_train[0].values
+    y_val = y_val[0].values
+    return X_train, y_train, X_val, y_val, tokenizer
+
+
+def read_bag_of_words(vocab_size=MAX_NUM_WORDS):
+    X_train, y_train, X_val, y_val = read_train_val_data()
+    X_total = pd.concat((X_train, X_val))
+    tokenizer = Tokenizer(num_words=vocab_size, split=' ')
+    tokenizer.fit_on_texts(X_total[0].values)
+    X_train = tokenizer.texts_to_matrix(X_train[0].values)
+    X_val = tokenizer.texts_to_matrix(X_val[0].values)
     y_train = y_train[0].values
     y_val = y_val[0].values
     return X_train, y_train, X_val, y_val, tokenizer

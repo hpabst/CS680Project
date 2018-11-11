@@ -24,7 +24,10 @@ def precision(y_true, y_pred):
     # prec = true_positives / predicted_positives
     TP = np.count_nonzero(np.logical_and(y_pred.flatten() >= 0.5, y_true.flatten() == 1))
     FP = np.count_nonzero(np.logical_and(y_pred.flatten() >= 0.5, y_true.flatten() == 0))
-    return TP/(TP+FP)
+    if TP + FP == 0:
+        return 0.
+    else:
+        return TP/(TP+FP)
 
 
 def recall_tensor(y_true, y_pred):
@@ -49,7 +52,10 @@ def recall(y_true, y_pred):
     # rec = true_positives / possible_positives
     TP = np.count_nonzero(np.logical_and(y_pred.flatten() >= 0.5, y_true.flatten() == 1))
     FN = np.count_nonzero(np.logical_and(y_pred.flatten() < 0.5, y_true.flatten() == 1))
-    return TP/(TP + FN)
+    if TP + FN == 0:
+        return 0.
+    else:
+        return TP/(TP + FN)
 
 
 def fbeta_score_tensor(y_true, y_pred, beta=1):
@@ -91,6 +97,8 @@ def fbeta_score(y_true, y_pred, beta=1):
         return 0
     p = precision(y_true, y_pred)
     r = recall(y_true, y_pred)
+    if p + r == 0:
+        return 0.
     bb = beta ** 2
     score = (1 + bb) * (p * r) / (bb * p + r)
     return score
