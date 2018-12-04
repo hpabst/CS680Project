@@ -6,6 +6,8 @@ import pandas as pd
 from keras.layers import Dense, LSTM, Embedding, Input
 from keras.models import Model, Sequential
 from keras.initializers import Constant
+from keras.optimizers import Adam
+from keras.callbacks import EarlyStopping
 
 VAL_SPLIT = 0.2
 EMBEDDING_DIM = 300
@@ -17,7 +19,7 @@ EPOCHS = 50
 BATCH_SIZE = 64
 WEIGHT_CLASSES = False
 SAMPLE_TYPE = None
-PRETRAIN_EMBEDDINGS = True
+PRETRAIN_EMBEDDINGS = False
 
 
 def main():
@@ -59,15 +61,19 @@ def main():
                             trainable=True))
     model.add(LSTM(128, dropout=0.2))
     model.add(Dense(1, activation='sigmoid'))
+
+    optimizer = Adam(lr=0.0001)
+    early_stopper = EarlyStopping(patience=5)
     print("Compiling model...")
-    model.compile(loss='mean_squared_error',
-                  optimizer='adam',
+    model.compile(loss='binary_crossentropy',
+                  optimizer=optimizer,
                   metrics=['accuracy'])
     print("Training model...")
     history = model.fit(x_train, y_train, batch_size=BATCH_SIZE, epochs=EPOCHS,
                         validation_data=(x_val, y_val),
                         verbose=2,
-                        class_weight=class_weights)
+                        class_weight=class_weights,
+                        callbacks=[early_stopper])
     print("Determining validation metrics...")
     val_prec, val_recall, val_f1 = evaluate_model(model, x_train, y_train, x_val, y_val)
     model_name = input("Enter a filename for model >>")

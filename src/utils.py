@@ -6,6 +6,7 @@ from keras.preprocessing.sequence import pad_sequences
 from keras.utils.vis_utils import plot_model
 from keras.utils import to_categorical
 from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import roc_auc_score
 import random
 import pickle
 import json
@@ -23,9 +24,11 @@ def evaluate_model(model, X_train, y_train, X_val, y_val):
     recall_val = recall(y_val, pred_val)
     f1_train = fbeta_score(y_train, pred_train)
     f1_val = fbeta_score(y_val, pred_val)
-    val_results = "Validation Results: Prec - {:.2f}  Recall - {:.2f}  F1 - {:.2f}".format(prec_val,
-                                                                                        recall_val,
-                                                                                        f1_val)
+    auc = roc_auc_score(y_val, pred_val)
+    val_results = "Validation Results: Prec - {:.2f}  Recall - {:.2f}  F1 - {:.2f}  AUC - {:.2f}".format(prec_val,
+                                                                                                recall_val,
+                                                                                                 f1_val,
+                                                                                                auc)
     train_results = "Train Results:      Prec - {:.2f}  Recall - {:.2f}  F1 - {:.2f}".format(prec_train,
                                                                                           recall_train,
                                                                                           f1_train)
@@ -108,6 +111,16 @@ def create_embedding_matrix(filepath, dictionary, embedding_dim):
         if embedding_vector is not None:
             embedding_matrix[i] = embedding_vector
     return embedding_matrix
+
+def recover_queries(tokenizer, X, y):
+    recovered_queries = []
+    for i, query in enumerate(X):
+        query_text = []
+        for index in query:
+            query_text.append(tokenizer.index_word.get(index, "UNKNOWN"))
+        if y[i] == 1:
+            recovered_queries.append(query_text)
+    return recovered_queries
 
 
 def read_data_embeddings(max_input_length=10, vocab_size=MAX_NUM_WORDS):

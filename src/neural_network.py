@@ -3,21 +3,41 @@ from data_rebalancing import balance_samples
 import numpy as np
 import pandas as pd
 from keras.layers import Dense, Input, Dropout, Embedding, Flatten
-from keras.models import Model, Sequential
+from keras.models import Model, Sequential, load_model
 from keras.initializers import Constant
+from keras.optimizers import Adam
+from keras.callbacks import EarlyStopping
+import os
 
 VAL_SPLIT = 0.2
 MAX_QUERY_LENGTH = 10
-VOCAB_SIZE = 5000
+VOCAB_SIZE = 300
 EMBEDDING_DIM = 300
 EMBEDDING_DIR = "../embeddings/glove.6B.300d.txt"
 
 SEED = None
 EPOCHS = 50
-BATCH_SIZE = 2
+BATCH_SIZE = 64
 WEIGHT_CLASSES = False
 SAMPLE_TYPE = None
-PRETRAIN_EMBEDDINGS = False
+PRETRAIN_EMBEDDINGS = True
+
+
+def evaluate_all_models():
+    root_dir = "../models"
+    X_train_de, y_train_de, X_val_de, y_val_de, tokenizer = read_data_embeddings(max_input_length=MAX_QUERY_LENGTH)
+    X_train_bow, y_train_bow, X_val_bow, y_val_bow, _ = read_bag_of_words(vocab_size=VOCAB_SIZE)
+    for subdir, dirs, files in os.walk(root_dir):
+        for file in files:
+            if ".h5" in file and "weightclasses" not in file:
+                print("Model name: {}".format(file))
+                model = load_model(os.path.join(subdir, file))
+                if "embed" in file:
+                    evaluate_model(model, X_train_de, y_train_de, X_val_de, y_val_de)
+                elif "bow5000" in file:
+                    evaluate_model(model, X_train_bow, y_train_bow, X_val_bow, y_val_bow)
+                print("")
+    return
 
 
 def nn_bag_of_words():
@@ -48,23 +68,26 @@ def nn_bag_of_words():
 
     print("Generating NN model...")
     model = Sequential()
-    model.add(Dense(2048, input_shape=(VOCAB_SIZE,), activation='tanh'))
+    model.add(Dense(2048, input_shape=(VOCAB_SIZE,), activation='relu'))
     model.add(Dropout(0.5))
-    model.add(Dense(2048, activation='tanh'))
+    model.add(Dense(2048, activation='relu'))
     model.add(Dropout(0.5))
-    model.add(Dense(1024, activation='tanh'))
+    model.add(Dense(1024, activation='relu'))
     model.add(Dropout(0.5))
     model.add(Dense(1, activation='sigmoid'))
 
+    early_stopper = EarlyStopping(patience=5)
+    optimizer = Adam(lr=0.0001)
     print("Compiling model...")
     model.compile(loss='binary_crossentropy',
-                  optimizer='adam',
+                  optimizer=optimizer,
                   metrics=['accuracy'])
 
     print("Training model...")
     history = model.fit(X_train, y_train, batch_size=BATCH_SIZE, epochs=EPOCHS,
                         validation_data=(X_val, y_val), verbose=2,
-                        class_weight=class_weights)
+                        class_weight=class_weights,
+                        callbacks=[early_stopper])
 
     print("Determining validation metrics...")
     val_prec, val_recall, val_f1 = evaluate_model(model, X_train, y_train, X_val, y_val)
@@ -114,22 +137,25 @@ def nn_word_embeddings():
                             input_length=MAX_QUERY_LENGTH,
                             trainable=True))
     model.add(Flatten())
-    model.add(Dense(2048, activation='tanh'))
+    model.add(Dense(2048, activation='relu'))
     model.add(Dropout(0.5))
-    model.add(Dense(2048, activation='tanh'))
+    model.add(Dense(2048, activation='relu'))
     model.add(Dropout(0.5))
-    model.add(Dense(1024, activation='tanh'))
+    model.add(Dense(1024, activation='relu'))
     model.add(Dropout(0.5))
     model.add(Dense(1, activation='sigmoid'))
 
+    optimizer = Adam(lr=0.0001)
+    early_stopper = EarlyStopping(patience=5)
     print("Compiling model...")
     model.compile(loss='binary_crossentropy',
-                  optimizer='adam',
+                  optimizer=optimizer,
                   metrics=['accuracy'])
 
     print("Training model...")
     history = model.fit(x_train, y_train, batch_size=BATCH_SIZE, epochs=EPOCHS,
                         validation_data=(x_val, y_val), verbose=2,
+                        callbacks=[early_stopper],
                         class_weight=class_weights)
 
     print("Determining validation metrics...")
